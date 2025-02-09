@@ -1,0 +1,342 @@
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Vexor Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet"/>
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+        }
+        .btn-click {
+            transition: transform 0.2s ease-in-out;
+        }
+        .btn-click:hover {
+            transform: scale(1.05);
+        }
+        .red-dot {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            height: 10px;
+            width: 10px;
+            background-color: red;
+            border-radius: 50%;
+        }
+        .font-technical {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+        }
+        .outlined {
+            outline: 2px solid #4a5568;
+        }
+        .btn-click:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.6);
+        }
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 400px;
+            background-color: #1a202c;
+            border: 2px solid #4a5568;
+            border-radius: 0.5rem;
+            z-index: 50;
+            display: none;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #4a5568;
+        }
+        .modal-body {
+            padding: 1rem;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+    </style>
+    <script>
+        let cameraOn = false;
+
+        function toggleLock(button) {
+            const icon = button.querySelector('i');
+            if (icon.classList.contains('fa-lock')) {
+                icon.classList.remove('fa-lock');
+                icon.classList.add('fa-unlock');
+            } else {
+                icon.classList.remove('fa-unlock');
+                icon.classList.add('fa-lock');
+            }
+        }
+
+        function toggleUnit(button) {
+            if (button.innerText.trim() === 'in mm') {
+                button.innerText = 'in cm';
+            } else {
+                button.innerText = 'in mm';
+            }
+        }
+
+        function toggleModal() {
+            const modal = document.getElementById('componentsModal');
+            if (modal.style.display === 'none' || modal.style.display === '') {
+                modal.style.display = 'block';
+            } else {
+                modal.style.display = 'none';
+            }
+        }
+
+        function startCamera() {
+            const video = document.getElementById('video');
+            const constraints = {
+                video: {
+                    width: { ideal: 800 },
+                    height: { ideal: 500 }
+                }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    video.srcObject = stream;
+                    cameraOn = true;
+                    updateCameraButton();
+                })
+                .catch((err) => {
+                    console.error('Error accessing camera: ', err);
+                });
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('video');
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+
+            tracks.forEach(function(track) {
+                track.stop();
+            });
+
+            video.srcObject = null;
+            cameraOn = false;
+            updateCameraButton();
+        }
+
+        function updateCameraButton() {
+            const button = document.getElementById('cameraButton');
+            const icon = button.querySelector('i');
+            const closeButton = document.getElementById('closeCameraButton');
+            if (cameraOn) {
+                icon.classList.remove('fa-play');
+                icon.classList.add('fa-camera');
+                button.setAttribute('onclick', 'captureImage()');
+                closeButton.style.display = 'block';
+            } else {
+                icon.classList.remove('fa-camera');
+                icon.classList.add('fa-play');
+                button.setAttribute('onclick', 'startCamera()');
+                closeButton.style.display = 'none';
+            }
+        }
+
+        function captureImage() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/png');
+
+            fetch('/capture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: dataUrl })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data.message);
+                displayCapturedImage(dataUrl);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function displayCapturedImage(dataUrl) {
+            const capturedImage = document.getElementById('capturedImage');
+            capturedImage.src = dataUrl;
+            capturedImage.style.display = 'block';
+            document.getElementById('digitizeButton').style.display = 'block';
+        }
+
+        function playSimulationVideo() {
+            const simulationVideo = document.getElementById('simulationVideo');
+            simulationVideo.style.display = 'block';
+            simulationVideo.play();
+        }
+    </script>
+</head>
+<body class="bg-black text-white font-sans">
+    <div class="p-4">
+        <!-- Header Section -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center">
+                <img alt="Vexor Pro Logo" class="mr-2" height="50" src="https://placehold.co/50x50" width="50"/>
+                <div>
+                    <h1 class="text-xl font-bold font-technical">VEXOR PRO</h1>
+                    <p class="text-sm">BY QUANTUM CORE GEN 'X</p>
+                </div>
+            </div>
+            <button class="bg-gray-800 text-white px-4 py-2 rounded-full flex items-center border border-gray-700 btn-click font-technical" onclick="startCamera()">
+                Start Camera
+                <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+
+        <!-- Main Content Section -->
+        <div class="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
+            <!-- Tools Panel -->
+            <div class="lg:w-1/4 p-4 bg-gray-900 rounded-lg border border-gray-700">
+                <h2 class="text-lg mb-4 text-center font-technical">Tools</h2>
+                <button class="w-full bg-gray-800 text-white py-2 mb-2 rounded border border-gray-700 btn-click flex items-center justify-center space-x-2" onclick="toggleLock(this)">
+                    <span>Snap To Grid</span>
+                    <i class="fas fa-lock"></i>
+                </button>
+                <button class="w-full bg-gray-800 text-white py-2 mb-2 rounded border border-gray-700 btn-click">Auto-Align Component</button>
+                <div class="flex justify-between mb-2">
+                    <button class="w-1/2 bg-gray-800 text-white py-2 mr-1 rounded border border-gray-700 btn-click">Rotate Left 90°</button>
+                    <button class="w-1/2 bg-gray-800 text-white py-2 ml-1 rounded border border-gray-700 btn-click">Rotate Right 90°</button>
+                </div>
+                <div class="flex justify-center items-center bg-gray-800 rounded-lg p-4 mt-8 border border-gray-700">
+                    <div class="text-center">
+                        <div class="bg-black p-4 rounded-full outlined">
+                            <div class="flex justify-center mb-2">
+                                <button class="bg-gray-700 p-2 rounded-full border border-gray-600 btn-click">
+                                    <i class="fas fa-arrow-up"></i>
+                                </button>
+                            </div>
+                            <div class="flex justify-between mb-2 space-x-2">
+                                <button class="bg-gray-700 p-2 rounded-full border border-gray-600 btn-click">
+                                    <i class="fas fa-arrow-left"></i>
+                                </button>
+                                <button class="bg-gray-700 p-2 rounded-full border border-gray-600 btn-click" onclick="toggleUnit(this)">
+                                    in mm
+                                </button>
+                                <button class="bg-gray-700 p-2 rounded-full border border-gray-600 btn-click">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                            <div class="flex justify-center">
+                                <button class="bg-gray-700 p-2 rounded-full border border-gray-600 btn-click">
+                                    <i class="fas fa-arrow-down"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="w-full bg-gray-800 text-white py-2 mt-4 rounded border border-gray-700 btn-click" onclick="toggleModal()">Components Panel</button>
+            </div>
+
+            <!-- ProtoView Panel -->
+            <div class="lg:w-1/2 p-4 bg-gray-900 rounded-lg border border-gray-700 relative">
+                <div class="flex justify-between items-center mb-4 border-2 border-gray-700 p-2 rounded-lg">
+                    <button class="bg-gray-800 text-white px-4 py-2 rounded border border-gray-700 btn-click">Previous</button>
+                    <h2 class="text-2xl font-bold font-technical">ProtoView</h2>
+                    <button class="bg-gray-800 text-white px-4 py-2 rounded border border-gray-700 btn-click">Next</button>
+                </div>
+                <div class="bg-gray-900 rounded-lg h-96 border-4 border-gray-800 relative">
+                    <video id="video" class="w-full h-full object-cover rounded-lg absolute top-0 left-0" autoplay></video>
+                    <img id="capturedImage" alt="Captured image will be displayed here" class="w-full h-full object-cover rounded-lg absolute top-0 left-0" style="display: none;" />
+                    <img alt="A grid graph box with evenly spaced horizontal and vertical lines forming a grid pattern" class="w-full h-full object-cover rounded-lg" height="500" src="https://placehold.co/800x500" width="800"/>
+                    <button id="closeCameraButton" class="absolute top-2 right-2 bg-black text-white p-2 rounded-full" style="display: none;" onclick="stopCamera()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <button id="digitizeButton" class="absolute bottom-2 right-2 bg-black text-white py-2 px-4 rounded border border-gray-500 btn-click" style="display: none;" onclick="playSimulationVideo()">
+                        Digitize & Simulate
+                    </button>
+                    <video id="simulationVideo" class="w-full h-full object-cover rounded-lg absolute top-0 left-0" style="display: none;">
+                        <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="flex justify-center mt-4 space-x-2">
+                    <div class="bg-gray-800 p-2 rounded-lg flex space-x-2 border border-gray-700">
+                        <button class="bg-gray-700 text-white px-4 py-2 rounded-full border border-gray-600 btn-click">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <button id="cameraButton" class="bg-gray-700 text-white px-4 py-2 rounded-full border border-gray-600 btn-click" onclick="startCamera()">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="bg-gray-700 text-white px-4 py-2 rounded-full border border-gray-600 btn-click">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal" id="componentsModal">
+                    <div class="modal-header">
+                        <h2 class="text-lg font-technical">Components Panel</h2>
+                        <button class="text-white" onclick="toggleModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="grid grid-cols-5 gap-2">
+                            <div class="col-span-5 text-left text-lg font-technical mb-2">Diodes</div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 1" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 2" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 3" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 4" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 5" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="col-span-5 text-left text-lg font-technical mb-2 mt-2 border-t border-gray-700 pt-2">Resistors</div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 6" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 7" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 8" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 9" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                            <div class="text-center">
+                                <img alt="Placeholder image 10" class="w-12 h-12 mx-auto" height="50" src="https://placehold.co/50x50" width="50"/>
+                                <p class="text-sm mt-1">aaa</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
